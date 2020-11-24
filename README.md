@@ -6,4 +6,6 @@ Details from about the algorithm can be found on Sage Jenson's [webpage](https:/
 
 This implmentation is mainly an excuse to try and learn Rust, so code is shoddy at best!
 
+![Gif of mould sim](https://github.com/lewisfish/mould-simulation/raw/main/mould.gif)
+
 ![Image of mould sim](https://github.com/lewisfish/mould-simulation/raw/main/mould-sim.png)
