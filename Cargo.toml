@@ -1,0 +1,13 @@
+[package]
+name = "mold-rust"
+version = "0.1.0"
+authors = ["lewis <lewistmcmillan@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.7.3"
+image = "0.23.12"
+ndarray = "0.13.1"
+ndarray-stats = "0.3.0"
