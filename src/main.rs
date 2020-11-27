@@ -1,7 +1,6 @@
-// #[macro_use]
 extern crate ndarray;
-
 use ndarray::prelude::*;
+
 use ndarray_stats::QuantileExt;
 use image::{Rgb, RgbImage, ImageBuffer, Luma};
 use rand::Rng;
@@ -12,7 +11,6 @@ struct Particle {
     y: f64,
     heading: f64,
     sensor_angle: f64,
-    sensor_width: i32,
     sensor_offset: f64
 }
 
@@ -22,21 +20,21 @@ impl Particle {
     let mut xc = self.x + self.sensor_offset * self.heading.cos();
     let mut yc = self.y + self.sensor_offset * self.heading.sin();
 
-    xc = xc.round() % 1024_f64;
-    yc = yc.round() % 1024_f64;
+    xc = xc.round() % 200_f64;
+    yc = yc.round() % 200_f64;
 
 
     let mut xl = self.x + self.sensor_offset * (self.heading - self.sensor_angle).cos();
     let mut yl = self.y + self.sensor_offset * (self.heading - self.sensor_angle).sin();
     
-    xl = xl.round() % 1024_f64;
-    yl = yl.round() % 1024_f64;
+    xl = xl.round() % 200_f64;
+    yl = yl.round() % 200_f64;
 
     let mut xr = self.x + self.sensor_offset * (self.heading + self.sensor_angle).cos();
     let mut yr = self.y + self.sensor_offset * (self.heading + self.sensor_angle).sin();
 
-    xr = xr.round() % 1024_f64;
-    yr = yr.round() % 1024_f64;
+    xr = xr.round() % 200_f64;
+    yr = yr.round() % 200_f64;
 
     let c = arr[[xc as usize, yc as usize]];
     let l = arr[[xl as usize, yl as usize]];
@@ -62,7 +60,7 @@ impl Particle {
     self.x = x;
     self.y = y;
 
-    ((self.x.round() % 1024_f64) as usize, (self.y.round() % 1024_f64) as usize)
+    ((self.x.round() % 200_f64) as usize, (self.y.round() % 200_f64) as usize)
     }
 }
 
@@ -73,17 +71,22 @@ fn main() {
     let mut particles: Vec<Particle> = Vec::new();
     let mut rng = rand::thread_rng();
 
-    let xsize = 1024;
-    let ysize = 1024;
+    let xsize = 200;
+    let ysize = 200;
 
     let mut trail = Array::<f64, _>::from_elem((xsize, ysize), 0.0_f64);
 
     for _p in 1..=1_000_000 {
-        let some = Particle {x: rng.gen_range(0_f64, 1024_f64), y: rng.gen_range(0_f64, 1024_f64), heading: 1.5 * std::f64::consts::PI * rng.gen::<f64>(), sensor_angle: 45.0_f64.to_radians(), sensor_width: 1, sensor_offset: 9.0_f64};
+        let some = Particle {x: rng.gen_range(0_f64, 200_f64), y: rng.gen_range(0_f64, 200_f64), heading: 2.0 * std::f64::consts::PI * rng.gen::<f64>(), sensor_angle: 45.0_f64.to_radians(), sensor_offset: 9.0_f64};
         particles.push(some);
         let x = *&some.x as usize;
         let y = *&some.y as usize;
-        trail[[x, y]] += 5.
+        trail[[x, y]] += 5.;
+        let some = Particle {x: rng.gen_range(25_f64, 50_f64), y: rng.gen_range(25_f64, 50_f64), heading: 2.0 * std::f64::consts::PI * rng.gen::<f64>(), sensor_angle: 10.0_f64.to_radians(), sensor_offset: 4.0_f64};
+        particles.push(some);
+        let x = *&some.x as usize;
+        let y = *&some.y as usize;
+        trail[[x, y]] += 5.;
     }
 
     for _i in 1..=1000 {
@@ -96,6 +99,7 @@ fn main() {
             let (x, y) = item;
             trail[[*x, *y]] += 5.;
         }
+        trail = box_blur(&trail);
         trail *= 0.8;
         let imgbuf = array_to_image(&trail);
 
@@ -105,7 +109,69 @@ fn main() {
 
 }
 
+fn box_blur(arr: &Array2<f64>) -> Array2<f64> {
+    
+    let width = arr.ncols();
+    let height = arr.nrows();
 
+    let mut out = Array::<f64, _>::from_elem((width, height), 0.0_f64);
+    let mut sum;
+    let mut x;
+    let mut xleft;
+    let mut xright;
+    let mut y;
+    let mut ydown;
+    let mut yup;
+
+
+    for j in 0..height {
+        y = j;
+        yup = j + 1;
+        ydown = j - 1;
+        if j == 0 {
+            y = j;
+            ydown = width-1;
+            yup = j + 1;
+        } 
+        if j == width-1 {
+            y = j;
+            ydown = j - 1;
+            yup = 1;
+        }
+
+        for i in 0..width {
+            x = i;
+            xright = i + 1;
+            xleft = i - 1;
+            
+            if i == 0 {
+                x = i;
+                xleft = width-1;
+                xright = i + 1;
+            } 
+            if i == width-1 {
+                x = i;
+                xleft = i - 1;
+                xright = 1;
+            }
+
+            sum = 0.0;
+            sum += arr[[xleft,  yup]];
+            sum += arr[[x    ,  yup]];
+            sum += arr[[xright, yup]];
+            sum += arr[[xleft,  y    ]];
+            sum += arr[[x    ,  y    ]];
+            sum += arr[[xright, y    ]];
+            sum += arr[[xleft,  ydown]];
+            sum += arr[[x    ,  ydown]];
+            sum += arr[[xright, ydown]];
+            out[[x, y]] = sum / 9.;
+
+        }
+    }
+
+    out
+}
 
 fn array_to_image(arr: & Array2<f64>) -> RgbImage{
     assert!(arr.is_standard_layout());
@@ -137,16 +203,16 @@ fn move_particle(p: &Particle) -> (f64, f64) {
     let mut new_x = p.x + xd;
     let mut new_y = p.y + yd;
 
-    if new_x > 1024_f64 {
-        new_x -= 1024_f64;
+    if new_x > 200_f64 {
+        new_x -= 200_f64;
     } else if new_x < 0_f64 {
-        new_x += 1024_f64;
+        new_x += 200_f64;
     }
 
-    if new_y > 1024_f64 {
-        new_y -= 1024_f64;
+    if new_y > 200_f64 {
+        new_y -= 200_f64;
     } else if new_y < 0_f64 {
-        new_y += 1024_f64;
+        new_y += 200_f64;
     }
 
     return (new_x, new_y);
